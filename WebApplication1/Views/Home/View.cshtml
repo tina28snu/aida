@@ -1,0 +1,950 @@
+﻿@model WebApplication1.Models.DocumentModel
+
+@if (WebApplication1.utils.Utils.ConnectedUSer != null)
+{
+    <div style="border: 5px solid cornflowerblue; padding: 0" class="container">
+
+        <div class="formUpdateAida">
+            @using (Ajax.BeginForm("Update", "Update", new AjaxOptions
+            {
+                HttpMethod = "POST",
+                UpdateTargetId = "resultUpdate",
+                OnSuccess = "showUpdate"
+            }))
+            {
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="title" value="@Model.documentData.title" />
+                <input type="hidden" name="url" value="@Model.documentData.url" />
+                <input class="contentUnmodified" type="hidden" name="content" value="@Model.documentData.content" />
+
+                <div id="sementisEntitiesAIDA">
+                    @for (int i = 0; i < Model.documentData.sementis_entities.entities.Count; i++)
+                    {
+                        <div class="entityAIDA">
+                            <input class="cn" type="hidden" value="@Model.documentData.sementis_entities.entities[i].commonName" />
+                            <input type="hidden" value="@Model.documentData.sementis_entities.entities[i].description" />
+                            <input type="hidden" value="@Model.documentData.sementis_entities.entities[i].freebaseId" />
+                            <div class="occurencesAIDA">
+                                @for (int j = 0; j < Model.documentData.sementis_entities.entities[i].occurrences.Count; j++)
+                                {
+                                    <div class="occurenceAIDA">
+                                        <input class="start" type="hidden" value="@Model.documentData.sementis_entities.entities[i].occurrences[j].start" />
+                                        <input class="end" type="hidden" value="@Model.documentData.sementis_entities.entities[i].occurrences[j].end" />
+                                        <input type="hidden" value="@Model.documentData.sementis_entities.entities[i].occurrences[j].value" />
+                                    </div>
+                                }
+                            </div>
+                            <div class="imagesEntityAIDA">
+                                @for (int j = 0; j < Model.documentData.sementis_entities.entities[i].images.Count; j++)
+                                {
+                                    <div class="imageEntityAIDA">
+                                        <input type="hidden" value="@Model.documentData.sementis_entities.entities[i].images[j].title" />
+                                        <input type="hidden" value="@Model.documentData.sementis_entities.entities[i].images[j].url" />
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <div class="imagesAIDA">
+                    @for (int i = 0; i < Model.documentData.images.Count; i++)
+                    {
+                        string classImage = "image" + i;
+                        <p class="@classImage">
+                            <input type="hidden" value="@Model.documentData.images[i].url" />
+                            <input type="hidden" value="@Model.documentData.images[i].name" />
+                            <input type="hidden" value="@Model.documentData.images[i].thumbnail" />
+                        </p>
+                    }
+                </div>
+
+                <input type="submit" id="updateAIDA" class="hidden" />
+            }
+        </div>
+
+
+        <div style="border-right: 1px solid cornflowerblue;" class="col-md-6">
+            <div style="margin: 3vh 5vw; text-align: center">
+                <a href="@Model.documentData.url" target="_blank">@Model.documentData.title</a>
+            </div>
+            <div hidden id="resultReanalyse"></div>
+            <div hidden id="resultUpdate"></div>
+            <div id="content" style="border-bottom: 1px solid cornflowerblue; color: black; padding: 1vh 0 2vh 0; text-align: justify;">
+                @Model.documentData.content
+            </div>
+            <div id="divTags" style="border-bottom: 1px solid cornflowerblue; padding: 1vh 0 2vh 0">
+                <h3 style="text-align: center;">Tags</h3>
+                <div class="allTags">
+                    @{
+                        string[] chars = new string[] { " ", "#", "$", "^", "&", "*", "(", ")", "?", "/", "<", ">", ":", ",", ";", "'", "‘", "’", "\\", "|", "{", "}", "[", "]", "_", "~", "=", "-", ".", "´", "`" };
+                    }
+                    @foreach (var entity in Model.documentData.sementis_entities.entities)
+                    {
+                        string dataTag = "";
+                        string noSpecialChar = entity.commonName;
+                        for (var i = 0; i < chars.Count(); i++)
+                        {
+                            while (noSpecialChar.IndexOf(chars[i]) > -1)
+                            {
+                                noSpecialChar = noSpecialChar.Replace(chars[i], "");
+                            }
+                        }
+                        noSpecialChar = noSpecialChar.ToLower();
+                        foreach (var occurrence in entity.occurrences)
+                        {
+                            dataTag += occurrence.value + "/";
+                        }
+                        <button class="tagsButton label @noSpecialChar" data-tags="@dataTag" type="button">@entity.commonName</button>
+                    }
+                </div>
+                <div style="padding: 1vh 0; margin-top: 1vh; border-top: 1px solid cornflowerblue; display: flex; justify-content: space-around">
+                    @using (Ajax.BeginForm("Suggestions", "Update", null, new AjaxOptions()
+                    {
+                        OnBegin = "hideDescriptionWhenSuggestions",
+                        HttpMethod = "POST",
+                        UpdateTargetId = "resultTarget",
+                        OnSuccess = "showResultsDirectly"
+                    }))
+                    {
+                        @Html.AntiForgeryToken()
+                        <input class="valueNewTag" type="hidden" name="commonName" />
+                        <input class="addNewTag btn btn-primary active" type="submit" value="Add New Tag" />
+                    }
+                    <button class="addTag btn btn-primary active" type="button">Add to Existing Tag</button>
+                    <div hidden class="formTag">
+                        <p>Please select a value from the text and the tag you want to add it to.</p>
+                        <p class="select">
+                            <select class="mySelect">
+                                @foreach (var entity in Model.documentData.sementis_entities.entities)
+                                {
+                                    string noSpecialChar = entity.commonName;
+                                    for (var i = 0; i < chars.Count(); i++)
+                                    {
+                                        while (noSpecialChar.IndexOf(chars[i]) > -1)
+                                        {
+                                            noSpecialChar = noSpecialChar.Replace(chars[i], "");
+                                        }
+                                    }
+                                    noSpecialChar = noSpecialChar.ToLower();
+                                    <option value="@noSpecialChar">@entity.commonName</option>
+                                }
+                            </select>
+                        </p>
+                        <input class="addToExistingTag btn btn-primary active" type="button" value="Add to tag" />
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-around">
+                    @if (Model.documentData.sementis_entities.entities.Count() > 20)
+                    {
+                        <button class="recolor btn btn-primary active" type="button">Recolor</button>
+                        <button class="oneTag btn btn-primary active" type="button">See one tag</button>
+                    }
+                </div>
+            </div>
+            <div class="divImages" style="border-bottom: 1px solid cornflowerblue; padding: 1vh 0 2vh 0;">
+                @if (Model.documentData.images.Count > 0)
+                {
+                    <h3 style="text-align: center;">Images</h3>
+                    for (int i = 0; i < Model.documentData.images.Count; i++)
+                    {
+                        string classImage = "image" + i;
+                        <p class="@classImage">
+                            <img class="imageSmall" src="@Model.documentData.images[i].thumbnail" alt="@Model.documentData.images[i].name" />
+                            <img hidden class="imageBig" src="@Model.documentData.images[i].url" alt="@Model.documentData.images[i].name" />
+                            <button style="position: absolute; background-color: cornflowerblue;" class="deleteImage" type="button">X</button>
+                        </p>
+                    }
+                }
+
+            </div>
+        </div>
+
+
+        <div style="padding: 2vh 2vw; border-bottom: 1px solid cornflowerblue;" class="col-md-6">
+            <div class="menuRight">
+                @using (Ajax.BeginForm("Suggestions", "Update", new AjaxOptions
+                {
+                    OnBegin = "hideDescriptionWhenSuggestions",
+                    HttpMethod = "POST",
+                    UpdateTargetId = "resultTarget",
+                    OnSuccess = "showResultsDirectly"
+                }))
+                {
+                    @Html.AntiForgeryToken()
+                    <ul class="nav nav-pills nav-justified menuForSuggestions">
+                        <li><input class="inputCommonName" type="hidden" name="commonName" /></li>
+                        <li role="presentation" class="active"><a href="#"><input class="searchSuggestions" style="background:none!important; color:inherit; border:none; padding:0!important;" type="submit" value="Suggestions" /></a></li>
+                        <li role="presentation"><a class="delete" href="#">Delete</a></li>
+                        <li role="presentation"><a href="#"><input class="reAnalyse text-primary" style="background: none; border: none" type="button" value="Re-analyse" /></a></li>
+                    </ul>
+                }
+            </div>
+            <div style="padding: 2vh 0" hidden id="formReAnalyse">
+                @using (Ajax.BeginForm("Article", "Update", new AjaxOptions
+                {
+                    OnBegin = "checkTextToReAnalyse",
+                    HttpMethod = "POST",
+                    UpdateTargetId = "resultReanalyse",
+                    OnSuccess = "showReanalysedDoc",
+                    OnFailure = "handleError"
+                }))
+                {
+                    @Html.AntiForgeryToken()
+                    <textarea class="textToAnalyse" name="textToAnalyse" placeholder="Text to re-analyse" style="width: 100%; height: 50vh; border: 1px solid cornflowerblue"></textarea>
+                    <input type="submit" value="Re-Analyse" style="background-color: blue; color: white" />
+                }
+            </div>
+            <p hidden style="padding-top: 1vh;" class="pleaseWait">Re-analysing! Please wait...</p>
+            <div id="resultTarget"></div>
+            <div class="hideWhenSuggestions">
+                <p hidden class="tagForThisDescription"></p>
+                <div id="description" style="width:100%">
+                    <h4 hidden style="text-align: center; padding: 1vh 0; border-bottom: 1px solid cornflowerblue; border-top: 1px solid cornflowerblue">Description</h4>
+                    <div id="imageAndDescriptionTag">
+                        @foreach (var desc in Model.documentData.sementis_entities.entities)
+                        {
+                            string noSpecialChar = desc.commonName;
+                            for (var i = 0; i < chars.Count(); i++)
+                            {
+                                while (noSpecialChar.IndexOf(chars[i]) > -1)
+                                {
+                                    noSpecialChar = noSpecialChar.Replace(chars[i], "");
+                                }
+                            }
+                            noSpecialChar = noSpecialChar.ToLower();
+                            <p hidden class="details @noSpecialChar">
+                                <strong>@desc.commonName</strong>
+                            </p>
+                            if (desc.images.Count != 0)
+                            {
+                                <p hidden class="details @noSpecialChar">
+                                    <img style="max-width:100%; max-height:30vh" src="@desc.images[0].url" alt="@desc.images[0].title" />
+                                </p>
+                            }
+                            <p hidden class="@noSpecialChar details hideUpdate">
+                                @desc.description
+                            </p>
+                        }
+                    </div>
+                </div>
+                <div hidden class="control" style="border-top: 1px solid cornflowerblue; padding-top: 1vh; margin-top: 1vh">
+                    <button class="deleteTag btn btn-primary active" type="button">Delete tag</button>
+                </div>
+            </div>
+        </div>
+
+
+        <div style="border-bottom: 1px solid cornflowerblue;" class="menuUpdate col-md-6">
+            @using (Html.BeginForm("NextArticle", "Update"))
+            {
+                <input type="hidden" name="index" value="@ViewBag.index" />
+                <input type="submit" id="nextArticle" class="hidden" />
+            }
+            <ul class="nav nav-pills nav-justified">
+                <li role="presentation"><a href="#"><label for="updateAIDA" style="font-weight: normal;">Update</label></a></li>
+                <li role="presentation"><a href="#"><label for="nextArticle" style="font-weight: normal;">Next Article >></label></a></li>
+            </ul>
+        </div>
+
+    </div>
+}
+
+else
+{
+    <div style="text-align: center; margin: 20vh 20vw 0 0">
+        Please <a href="/Home/Index">Log in</a> to view this page. <br />
+        If you don't have an account, please contact Mentis at <br />
+        Phone: +32 (2) 647 72 25 <br />
+        Email: sales@mentis.fr
+    </div>
+}
+
+
+
+
+@section scripts{
+    <script>
+
+        var chars = [" ", "#", "$", "^", "&", "*", "(", ")", "?", "/", "<", ">", ":", ",", ";", "'", "‘", "’", "\\", "|", "{", "}", "[", "]", "_", "~", "=", "-", ".", "´", "`"];
+        var checkColorRequest = true;
+
+
+        // Add color to text and buttons
+        function addColor() {
+            var content = $("#content").html();
+
+            // Prepare colors for short articles
+            var listColors = new Array("blue", "red", "darkorange", "green", "blueviolet", "brown",
+                "chartreuse", "deeppink", "cornflowerblue", "black", "crimson", "darkcyan", "darkgray",
+                "yellow", "navy", "coral", "deepskyblue", "chocolate", "mediumblue", "orangered");
+
+
+            // Create array of start end end for each occurence
+            var occurences = [];
+            for (var i = 1; i <= $(".entityAIDA").length; i++) {
+                var cn = $(".entityAIDA:nth-child(" + i + ") > .cn").val();
+                for (var char in chars) {
+                    while (cn.indexOf(chars[char]) > -1) {
+                        cn = cn.replace(chars[char], "");
+                    }
+                }
+                cn = cn.toLowerCase();
+                for (var j = 1; j <= $(".entityAIDA:nth-child(" + i + ") > .occurencesAIDA > .occurenceAIDA").length; j++) {
+                    var startI = $(".entityAIDA:nth-child(" + i + ") > .occurencesAIDA > .occurenceAIDA:nth-child(" + j + ") > .start").val();
+                    var endI = $(".entityAIDA:nth-child(" + i + ") > .occurencesAIDA > .occurenceAIDA:nth-child(" + j + ") > .end").val();
+                    endI = parseInt(endI) + 1;
+                    if (occurences.findIndex(x => x.start == startI) == -1) {
+                        var list = {
+                            commonName: cn,
+                            start: startI,
+                            end: endI
+                        };
+                        occurences.push(list);
+                    }
+                    else {
+                        $(".entityAIDA:nth-child(" + i + ") > .occurencesAIDA > .occurenceAIDA:nth-child(" + j + ")").remove();
+                    }
+                }
+            }
+            function mycomparator(a, b) {
+                return parseInt(b.start, 10) - parseInt(a.start, 10);
+            }
+            occurences = occurences.sort(mycomparator);
+
+            // Create spans
+            var content = $("#content").text().trim();
+            for (var i = 0; i < occurences.length; i++) {
+                // Create spans
+                var toInsert = "<span class='" + occurences[i].commonName + "'>";
+                var start = occurences[i].start;
+                var end = occurences[i].end;
+                var contentEnd = content;
+                var contentStart = contentEnd.slice(0, end) + "</span>" + contentEnd.slice(end);
+                content = contentStart.slice(0, start) + toInsert + contentStart.slice(start);
+                $("#content").html(content);
+            }
+
+            // Add colors
+            for (var a = 0; a < occurences.length; a++) {
+                // Random colors for long articles
+                var randomColor = "rgb(" + (Math.floor(Math.random() * 256)) + "," + (Math.floor(Math.random() * 256)) + "," + (Math.floor(Math.random() * 256)) + ")";
+
+                // Add the colors to tags and spans
+                if (checkColorRequest == true) {
+                    if ($(".tagsButton").length <= listColors.length) {
+                        $(".tagsButton." + occurences[a].commonName + "").css("background-color", listColors[a]);
+                        //if ($("span." + occurences[a].commonName + "").css("color") != "white") {
+                        $("span." + occurences[a].commonName + "").css("background-color", listColors[a]).css("color", "white");
+                        //}
+                    }
+                    else {
+                        $(".tagsButton." + occurences[a].commonName + "").css("background-color", randomColor);
+                        $("span." + occurences[a].commonName + "").css("background-color", randomColor).css("color", "white");
+                    }
+                }
+            }
+        }
+        addColor();
+
+        function oneColor() {
+            $(".oneTag").click(function (e) {
+                if (checkColorRequest == true) {
+                    // Remove colors
+                    $(".tagsButton").css("background-color", "cornflowerblue");
+                    $("span").css("background-color", "").css("color", "black");
+
+                    $(this).text("See all tags");
+                    checkColorRequest = false;
+                }
+                else {
+                    checkColorRequest = true;
+                    addColor();
+                    $(this).text("See one tag");
+                }
+            });
+        }
+        oneColor();
+
+        function colorAgain() {
+            $(".recolor").click(function (e) {
+                addColor();
+            });
+        }
+        colorAgain();
+
+
+        // Add names to the inputs in formUpdateAida
+        function addNamesForm() {
+            for (var b = 0; b < $(".entityAIDA").length; b++) {
+                var name = "entity[" + b + "]";
+                var child = b + 1;
+                $(".entityAIDA:nth-child(" + child + ") input:nth-child(" + 1 + ")").attr("name", name + "commonName");
+                $(".entityAIDA:nth-child(" + child + ") input:nth-child(" + 2 + ")").attr("name", name + "description");
+                $(".entityAIDA:nth-child(" + child + ") input:nth-child(" + 3 + ")").attr("name", name + "freebaseId");
+                for (var c = 0; c < $(".entityAIDA:nth-child(" + child + ") .occurencesAIDA").children().length; c++) {
+                    var nameOcc = name + "occurences[" + c + "]";
+                    var child2 = c + 1;
+                    $(".entityAIDA:nth-child(" + child + ") .occurenceAIDA:nth-child(" + child2 + ") input:nth-child(" + 1 + ")").attr("name", nameOcc + "start");
+                    $(".entityAIDA:nth-child(" + child + ") .occurenceAIDA:nth-child(" + child2 + ") input:nth-child(" + 2 + ")").attr("name", nameOcc + "end");
+                    $(".entityAIDA:nth-child(" + child + ") .occurenceAIDA:nth-child(" + child2 + ") input:nth-child(" + 3 + ")").attr("name", nameOcc + "value");
+                }
+                for (var d = 0; d < $(".entityAIDA:nth-child(" + child + ") .imagesEntityAIDA").children().length; d++) {
+                    var nameImg = name + "images[" + d + "]";
+                    var child3 = d + 1;
+                    $(".entityAIDA:nth-child(" + child + ") .imageEntityAIDA:nth-child(" + child3 + ") input:nth-child(" + 1 + ")").attr("name", nameImg + "title");
+                    $(".entityAIDA:nth-child(" + child + ") .imageEntityAIDA:nth-child(" + child3 + ") input:nth-child(" + 2 + ")").attr("name", nameImg + "url");
+                }
+            }
+            for (var e = 0; e < $(".imagesAIDA").children().length; e++) {
+                $(".image" + e + " input:nth-child(" + 1 + ")").attr("name", "images[" + e + "]url");
+                $(".image" + e + " input:nth-child(" + 2 + ")").attr("name", "images[" + e + "]name");
+                $(".image" + e + " input:nth-child(" + 3 + ")").attr("name", "images[" + e + "]thumbnail");
+            }
+        }
+        addNamesForm();
+
+
+        // Show details tag
+        function showDetails() {
+            $('.tagsButton').click(function (e) {
+                $('.details').attr("hidden", "true");
+                $("#resultTarget").attr("hidden", "true");
+                var valTag = $(this).text();
+                for (var i = 0; i < chars.length; i++) {
+                    while (valTag.indexOf(chars[i]) > -1) {
+                        valTag = valTag.replace(chars[i], "");
+                    }
+                }
+                valTag = valTag.toLowerCase();
+                $('.hideWhenSuggestions').removeAttr("hidden");
+                $('#formReAnalyse').attr("hidden", "true");
+                $("p." + valTag + "").removeAttr("hidden");
+                $(".control").removeAttr("hidden");
+                $("h4").removeAttr("hidden");
+                $("div." + valTag + "").removeAttr("hidden");
+                $(".inputCommonName").val($(this).text());
+                $(".tagForThisDescription").html($(this).text());
+
+                // if onecolor is clicked, color only one tag at the time
+                if (checkColorRequest == false) {
+                    var myclass = $(this).attr("class");
+                    myclass = myclass.slice(17);
+                    // Remove colors for tags and spans already checked
+                    $(".tagsButton").css("background-color", "cornflowerblue");
+                    $("span").css("background-color", "").css("color", "black");
+                    // Add class to color the tag (button)
+                    $(this).css("background-color", "chartreuse");
+                    // Add class to color the span
+                    $("span." + myclass + "").css("background-color", "chartreuse").css("color", "white");
+                }
+            });
+        }
+        showDetails();
+
+
+        // Show bigger image
+        $(".imageSmall").click(function (e) {
+            $(this).attr("hidden", "true");
+            $(this).parent().find(".imageBig").removeAttr("hidden");
+        });
+
+        $(".imageBig").click(function (e) {
+            $(this).attr("hidden", "true");
+            $(this).parent().find(".imageSmall").removeAttr("hidden");
+        });
+
+
+        // Delete image
+        $(".deleteImage").click(function (e) {
+            // Update model for AIDA - start
+            var classImage = $(this).parent().attr("class");
+            $("." + classImage).remove();
+            // Update model for AIDA - end
+        });
+
+
+        // Complete input selected value for tag with what the user selected
+        function addTagOrValue() {
+            $(".addNewTag").click(function (e) {
+                var text = window.getSelection().toString().trim();
+                if (text != "") {
+                    $(".valueNewTag").val(text);
+                }
+                else {
+                    alert("Please select a value for the new tag first!");
+                    return false;
+                }
+            });
+
+            $(".addTag").click(function (e) {
+                $("#content").html($(".contentUnmodified").val());
+                // Hide the add to existing tag button and show the formulaire
+                $(".formTag").removeAttr("hidden");
+                $(".addTag").removeClass(" btn btn-primary active").attr("hidden", "true");
+            });
+        }
+        addTagOrValue();
+
+
+        // Add a value to an existing tag
+        function addToExistingTag() {
+            $(".addToExistingTag").click(function (e) {
+                var text = window.getSelection().toString().trim();
+                // Check if value tag is not empty
+                if (text == "") {
+                    alert("Please choose a new value from the text");
+                }
+                else {
+                    var newValue = text;
+                    var tag = $(".mySelect").find('option:selected').text();
+                    var dataTag = $("button:contains(" + tag + ")").data("tags");
+                    dataTag = dataTag + newValue + "/";
+                    $("button:contains(" + tag + ")").attr("data-tags", dataTag);
+                    var startIndex = window.getSelection().getRangeAt(0).startOffset;
+                    var endIndex = window.getSelection().getRangeAt(0).endOffset;
+                    endIndex = endIndex - 1;
+                }
+                $(".addTag").addClass(" btn btn-primary active").removeAttr("hidden");
+                $(".formTag").attr("hidden", "true");
+
+                // Update model for AIDA - start
+                // Create div containing the occurence
+                var occurence = document.createElement("div");
+                occurence.className = "occurenceAIDA";
+                // Select the right tag to place the occurence to
+                var entityByCommonName = $(".entityAIDA").find($('*[value="' + tag + '"]'));
+                var entity = entityByCommonName.parent();
+                var occurences = entity.find($(".occurencesAIDA"));
+                // Create input for value
+                var value = document.createElement("input");
+                value.setAttribute("type", "hidden");
+                value.setAttribute("value", newValue);
+                // Create input for start
+                var start = document.createElement("input");
+                start.className = "start";
+                start.setAttribute("type", "hidden");
+                start.setAttribute("value", startIndex);
+                // Create input for end
+                var end = document.createElement("input");
+                end.className = "end";
+                end.setAttribute("type", "hidden");
+                end.setAttribute("value", endIndex);
+                // Add the inputs to occurence and the occurence to occurences
+                occurence.appendChild(start);
+                occurence.appendChild(end);
+                occurence.appendChild(value);
+                occurences.append(occurence);
+                // Update model for AIDA - end
+
+                addColor();
+                addNamesForm();
+            });
+        }
+        addToExistingTag();
+
+
+        // Check if a tag is selected when asking for suggestions
+        $(".searchSuggestions").click(function (e) {
+            if ($(".inputCommonName").val() == "") {
+                alert("Please select a tag to show suggestions! \r\nIf you want to add a new tag, please select a value and 'Add New Tag'!");
+                return false;
+            }
+        });
+
+
+        // Hide description when suggestions are shown
+        function hideDescriptionWhenSuggestions(e) {
+            $('.hideWhenSuggestions').attr("hidden", "true");
+        }
+
+        // Show suggestions when received, don't show old results
+        function showResultsDirectly(e) {
+            $("#resultTarget").removeAttr("hidden");
+        }
+
+
+        // Add a new tag according to a selected suggestion
+        $(document).on("click", "#selectSuggestion", function (e) {
+            // Add the button for the new tag
+            var commonName = $(this).parent().parent().find("h4").text();
+            var dataTagNew = $(this).parent().parent().find("input").val();
+            var id = $(this).parent().parent().find("h1").text();
+            var descriptionTag = $(this).parent().parent().find("p").text();
+            var srcImage = $(this).parent().parent().find("img").attr("src");
+            var altImage = $(this).parent().parent().find("img").attr("alt");
+
+            var commonNameNoChars = commonName;
+            for (var i = 0; i < chars.length; i++) {
+                while (commonNameNoChars.indexOf(chars[i]) > -1) {
+                    commonNameNoChars = commonNameNoChars.replace(chars[i], "");
+                }
+            }
+            commonNameNoChars = commonNameNoChars.toLowerCase();
+            var oldCommonName = dataTagNew;
+            for (var i = 0; i < chars.length; i++) {
+                while (oldCommonName.indexOf(chars[i]) > -1) {
+                    oldCommonName = oldCommonName.replace(chars[i], "");
+                }
+            }
+            oldCommonName = oldCommonName.toLowerCase();
+            dataTagNew += "/";
+
+            // If new tag
+            if (!$(".tagsButton").hasClass("" + oldCommonName + "")) {
+                var newTag = $("<button class='tagsButton label " + commonNameNoChars + "' >" + commonName + "</button > ");
+                newTag.attr('data-tags', dataTagNew);
+                newTag.attr('type', 'button');
+                $(".allTags").append(newTag);
+
+                // Add the description and photo for the tag
+                var titleTag = "<p hidden class='" + commonNameNoChars + " details'><strong>" + commonName + "</strong></p>";
+                $("#imageAndDescriptionTag").append(titleTag);
+                if (srcImage != undefined) {
+                    var image = "<p hidden class='details " + commonNameNoChars + "'><img style='max-width:100%; max-height:30vh' src='" + srcImage + "' alt='" + altImage + "' /></p>";
+                    $("#imageAndDescriptionTag").append(image);
+                }
+                var description = "<p hidden class='" + commonNameNoChars + " details hideUpdate'>" + descriptionTag + "</p>";
+                $("#imageAndDescriptionTag").append(description);
+
+                // When done, show description instead of suggestions
+                $(".suggestions").attr("hidden", "true");
+                $('.details').attr("hidden", "true");
+                $("#resultTarget").attr("hidden", "true");
+                $('.hideWhenSuggestions').removeAttr("hidden");
+                $("h4").removeAttr("hidden");
+                $(".control").removeAttr("hidden");
+                $("p." + commonNameNoChars + "").removeAttr("hidden");
+
+                // Update select for add value to an existing tag
+                var option = $("<option>" + commonName + "</option > ");
+                option.attr("value", commonNameNoChars);
+                $(".mySelect").append(option);
+
+                // Update model for AIDA - start
+                // Create the div for the entity
+                var entityAIDA = document.createElement("div");
+                entityAIDA.className = "entityAIDA";
+
+                // Create the 3 inputs for the general info entity
+                var inputCN = document.createElement("input");
+                var inputD = document.createElement("input");
+                var inputFI = document.createElement("input");
+                // Add the attributes to the inputs
+                inputCN.className = "cn";
+                inputCN.setAttribute("type", "hidden");
+                inputCN.setAttribute("value", commonName);
+                inputD.setAttribute("type", "hidden");
+                inputD.setAttribute("value", descriptionTag);
+                inputFI.setAttribute("type", "hidden");
+                inputFI.setAttribute("value", id);
+                // Append the inputs to the div for entityAIDA
+                entityAIDA.appendChild(inputCN);
+                entityAIDA.appendChild(inputD);
+                entityAIDA.appendChild(inputFI);
+
+                // Function to return all the indexesOf a value can be found in the context
+                function indexesOf(source, find) {
+                    var result = [];
+                    for (var i = 0; i < source.length; i++) {
+                        var fin = i + find.length;
+                        if (source.substring(i, fin) == find) {
+                            result.push(i);
+                        }
+                    }
+                    return result;
+                }
+
+                // Create the div for occurences
+                var occurences = document.createElement("div");
+                occurences.className = "occurencesAIDA";
+                // Select the context (necessary to find where the value(s) is(are) in the text)
+                var context = $(".contentUnmodified").val();
+                var name = dataTagNew.slice(0, -1);
+                var indexes = indexesOf(context, name);
+                for (var i = 0; i < indexes.length; i++) {
+                    var startNT = indexes[i];
+                    var endNT = startNT + name.length - 1;
+                    var occurence = document.createElement("div");
+                    occurence.className = "occurenceAIDA";
+                    // Create input for value
+                    var valueO = document.createElement("input");
+                    valueO.setAttribute("type", "hidden");
+                    valueO.setAttribute("value", name);
+                    // Create input for start
+                    var startO = document.createElement("input");
+                    startO.className = "start";
+                    startO.setAttribute("type", "hidden");
+                    startO.setAttribute("value", startNT);
+                    // Create input for end
+                    var endO = document.createElement("input");
+                    endO.className = "end",
+                    endO.setAttribute("type", "hidden");
+                    endO.setAttribute("value", endNT);
+                    // Add the inputs to occurence and the occurence to occurences
+                    occurence.appendChild(startO);
+                    occurence.appendChild(endO);
+                    occurence.appendChild(valueO);
+                    occurences.append(occurence);
+                }
+                // Add the div to entity
+                entityAIDA.appendChild(occurences);
+
+                // Create the div for images
+                var imagesEntity = document.createElement("div");
+                imagesEntity.className = "imagesEntityAIDA";
+                // Create inner div for image
+                var imageEntity = document.createElement("div");
+                imageEntity.className = "imageEntityAIDA";
+                // Create inputs for the imageEntity
+                var inputT = document.createElement("input");
+                var inputU = document.createElement("input");
+                // Add attributes to inputs
+                inputT.setAttribute("type", "hidden");
+                inputT.setAttribute("value", altImage);
+                inputU.setAttribute("type", "hidden");
+                inputU.setAttribute("value", srcImage);
+                // Append the inputs to the div for imageAIDA
+                imageEntity.appendChild(inputT);
+                imageEntity.appendChild(inputU);
+                // Append the inner div to the div imagesEntity
+                imagesEntity.appendChild(imageEntity);
+                // Add the div to entity
+                entityAIDA.appendChild(imagesEntity);
+
+                // Append the div entityAIDA to Entities
+                $("#sementisEntitiesAIDA").append(entityAIDA);
+                // Update model for AIDA - end
+
+                // Add color to tag and value and show details
+                addColor();
+                colorAgain();
+                oneColor();
+                addNamesForm();
+                showDetails();
+            }
+
+            // If updating description for tag
+            else {
+                $("#imageAndDescriptionTag").find($(".details." + oldCommonName + "")).remove();
+
+                // Change the tag
+                $(".allTags").find($("." + oldCommonName + "")).html(commonName);
+
+                // Update select for add value to an existing tag
+                $('.mySelect option[value="' + oldCommonName + '"]').attr("value", commonNameNoChars).html(commonName);
+
+                // Update class button and class span
+                $(".allTags").find($("." + oldCommonName + "")).removeClass(oldCommonName).addClass(commonNameNoChars);
+                var content = $("#content").text();
+                $("#content").find($("." + oldCommonName + "")).removeClass(oldCommonName).addClass(commonNameNoChars);
+
+                // Add the description and photo for the tag
+                var titleTag = "<p hidden class='" + commonNameNoChars + " details'><strong>" + commonName + "</strong></p>";
+                $("#imageAndDescriptionTag").append(titleTag);
+                if (srcImage != undefined) {
+                    var image = "<p hidden class='details " + commonNameNoChars + "'><img style='max-width:100%; max-height:30vh' src='" + srcImage + "' alt='" + altImage + "' /></p>";
+                    $("#imageAndDescriptionTag").append(image);
+                }
+                var description = "<p hidden class='" + commonNameNoChars + " details hideUpdate'>" + descriptionTag + "</p>";
+                $("#imageAndDescriptionTag").append(description);
+
+                // When done, show description instead of suggestions
+                $(".suggestions").attr("hidden", "true");
+                $("#resultTarget").attr("hidden", "true");
+                $('.hideWhenSuggestions').removeAttr("hidden");
+                $("p." + commonNameNoChars + "").removeAttr("hidden");
+
+                // Update model for AIDA - start
+                var name = dataTagNew.slice(0, -1);
+                var nameInput = "entity[i]commonName";
+                var i = $(".allTags").find($("." + commonNameNoChars + "")).prevAll().length;
+                nameInput = nameInput.replace("[i]", "[" + i + "]");
+                $('.entityAIDA').find($('input[name="' + nameInput + '"]')).val(commonName);
+                $('.entityAIDA').find($('input[name="' + nameInput + '"]')).next().val(descriptionTag);
+                $('.entityAIDA').find($('input[name="' + nameInput + '"]')).next().next().val(id);
+                // Update model for AIDA - end
+            }
+        });
+
+
+        // Delete tag from menu delete
+        $(".delete").click(function (e) {
+            var alerted = localStorage.getItem('alerted') || '';
+            if (alerted != 'yes') {
+                alert("This will delete your tag! \r\nIf you only want to change the description for your tag, please select 'Suggestions'!");
+                localStorage.setItem('alerted', 'yes');
+            }
+            else {
+                var tagToDelete = $(this).parent().parent().find($(".inputCommonName")).val();
+                for (var i = 0; i < chars.length; i++) {
+                    while (tagToDelete.indexOf(chars[i]) > -1) {
+                        tagToDelete = tagToDelete.replace(chars[i], "");
+                    }
+                }
+                tagToDelete = tagToDelete.toLowerCase();
+
+                // Delete description tag
+                $("#imageAndDescriptionTag").find($(".details." + tagToDelete + "")).remove();
+
+                // Delete button Tag
+                $(".tagsButton." + tagToDelete + "").remove();
+
+                // Delete the span with the value from content
+                var textSpan = $('#content').find($("span." + tagToDelete + "")).text();
+                var spanToDelete = $('#content').find($("span." + tagToDelete + ""));
+                var contentToModify = $("#content").text();
+                contentToModify.replace(spanToDelete, textSpan);
+                $("#content").html(contentToModify);
+
+                // Hide the description
+                $('.hideWhenSuggestions').attr("hidden", "true");
+
+                // Update select for add value to an existing tag
+                $(".mySelect option:contains(" + $(this).parent().parent().find($(".inputCommonName")).val() + ")").remove();
+
+                // Update model for AIDA - start
+                var tagDelete = $(this).parent().parent().find($(".inputCommonName")).val();
+                $(".entityAIDA").find($('input[value="' + tagDelete + '"]')).parent().remove();
+                // Update model for AIDA - end
+
+                // Re-color
+                addColor();
+                addNamesForm();
+            }
+        });
+
+        // Delete tag from delete tag under description
+        $(".deleteTag").click(function (e) {
+            var alerted = localStorage.getItem('alerted') || '';
+            if (alerted != 'yes') {
+                alert("This will delete your tag! \r\nIf you only want to change the description for your tag, please select 'Suggestions'!");
+                localStorage.setItem('alerted', 'yes');
+            }
+            else {
+                // Delete description tag
+                var tagToDelete = $(this).parent().parent().find($(".tagForThisDescription")).text();
+                for (var i = 0; i < chars.length; i++) {
+                    while (tagToDelete.indexOf(chars[i]) > -1) {
+                        tagToDelete = tagToDelete.replace(chars[i], "");
+                    }
+                }
+                tagToDelete = tagToDelete.toLowerCase();
+                $("#imageAndDescriptionTag").find($(".details." + tagToDelete + "")).remove();
+
+                // Delete button Tag
+                $(".tagsButton." + tagToDelete + "").remove();
+
+                // Delete the span with the value from content
+                var textSpan = $('#content').find($("span." + tagToDelete + "")).text();
+                var spanToDelete = $('#content').find($("span." + tagToDelete + ""));
+                var contentToModify = $("#content").text();
+                contentToModify.replace(spanToDelete, textSpan);
+                $("#content").html(contentToModify);
+
+                // Hide the deleted description
+                $('.hideWhenSuggestions').attr("hidden", "true");
+
+                // Update select for add value to an existing tag
+                $(".mySelect option:contains(" + $(this).parent().parent().find($(".tagForThisDescription")).text() + ")").remove();
+
+                // Update model for AIDA - start
+                var tagDelete = $(this).parent().parent().find($(".tagForThisDescription")).text();
+                $(".entityAIDA").find($('input[value="' + tagDelete + '"]')).parent().remove();
+                // Update model for AIDA - end
+
+                // Re-color
+                addColor();
+                addNamesForm();
+            }
+        });
+
+
+        // Show form, hide other info and add the text to re-analyse
+        $(".reAnalyse").click(function (e) {
+            $("#formReAnalyse").removeAttr("hidden");
+            $("#resultTarget").attr("hidden", "true");
+            $(".hideWhenSuggestions").attr("hidden", "true");
+
+            $(".textToAnalyse").val("");
+            var text = window.getSelection().toString();
+            var content = $("#content").text();
+            if (text != undefined) {
+                $(".textToAnalyse").val(text);
+            }
+            else {
+                $(".textToAnalyse").val(content);
+            }
+        })
+
+        // Check if text exists before sumitting
+        function checkTextToReAnalyse(e) {
+            if ($(".textToAnalyse").val() == "") {
+                alert("Please add the text to be re-analysed!");
+                e.preventDefault();
+            }
+
+            // Show the text with please wait
+            $(".pleaseWait").attr("hidden", "true").toggle();
+            $("#formReAnalyse").attr("hidden", "true");
+        }
+
+        // Show results for the reanalysed document
+        function showReanalysedDoc(e) {
+            // Change content with the text that was reanalysed
+            var content = document.getElementById("content");
+            var contentR = document.getElementById("contentR");
+            content.innerHTML = contentR.innerHTML;
+
+            // Change the tags with the new tags
+            var divTags = document.getElementById("divTags");
+            var divTagsR = document.getElementById("divTagsR");
+            divTags.innerHTML = divTagsR.innerHTML;
+
+            // Change the description with the new description
+            var description = document.getElementById("description");
+            var descriptionR = document.getElementById("descriptionR");
+            description.innerHTML = descriptionR.innerHTML;
+
+            // Change the AIDA form with the new form
+            var sementisEntitiesAIDA = document.getElementById("sementisEntitiesAIDA");
+            var sementisEntitiesAIDAR = document.getElementById("sementisEntitiesAIDAR");
+            sementisEntitiesAIDA.innerHTML = sementisEntitiesAIDAR.innerHTML;
+
+            // Remove the content of the result
+            $("#resultReanalyse").empty();
+
+
+            // Add colors to values and tags and show the details + other functions
+            addColor();
+            oneColor();
+            colorAgain();
+            addNamesForm();
+            showDetails();
+            hideDescriptionWhenSuggestions();
+            showResultsDirectly();
+            checkTextToReAnalyse();
+            addTagOrValue();
+            addToExistingTag();
+        }
+
+        function handleError(xhr, status) {
+            alert('Error: ' + xhr.statusText);
+        }
+
+
+        // Update AIDA
+        function showUpdate(e) {
+            var update = $("#resultUpdate p").text();
+
+            if (update == "success") {
+                alert("Success! Thank you for updating!");
+            }
+            else {
+                alert("Error! Something went wrong, please try again later!");
+            }
+        }
+
+
+    </script>
+}

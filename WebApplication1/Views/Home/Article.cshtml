@@ -1,0 +1,271 @@
+﻿@model WebApplication1.Models.DocumentModel
+
+@if (WebApplication1.utils.Utils.ConnectedUSer != null)
+{
+    <div style="border: 5px solid cornflowerblue; padding: 0" class="container">
+
+        <div class="formUpdateAida">
+            @using (Ajax.BeginForm("Update", "Update", new AjaxOptions
+            {
+                HttpMethod = "POST",
+                UpdateTargetId = "resultUpdate",
+                OnSuccess = "showUpdate"
+            }))
+            {
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.objectId"/>
+                <input type="hidden" name="title" value="@Model.documentData.title" />
+                <input type="hidden" name="url" value="@Model.documentData.url" />
+                <input class="contentUnmodified" type="hidden" name="content" value="@Model.documentData.content" />
+
+                <div id="sementisEntitiesAIDA">
+                    @for (int i = 0; i < Model.documentData.sementis_entities.entities.Count; i++)
+                    {
+                        <div class="entityAIDA">
+                            @if (Model.documentData.sementis_entities.entities[i].commonName == "")
+                            {
+                                Model.documentData.sementis_entities.entities[i].commonName = Model.documentData.sementis_entities.entities[i].occurrences[0].value;
+                            }
+                            <input class="cn" type="hidden" value="@Model.documentData.sementis_entities.entities[i].commonName" />
+                            <input type="hidden" value="@Model.documentData.sementis_entities.entities[i].description" />
+                            <input type="hidden" value="@Model.documentData.sementis_entities.entities[i].freebaseId" />
+                            <div class="occurencesAIDA">
+                                @for (int j = 0; j < Model.documentData.sementis_entities.entities[i].occurrences.Count; j++)
+                                {
+                                    <div class="occurenceAIDA">
+                                        <input class="start" type="hidden" value="@Model.documentData.sementis_entities.entities[i].occurrences[j].start" />
+                                        <input class="end" type="hidden" value="@Model.documentData.sementis_entities.entities[i].occurrences[j].end" />
+                                        <input type="hidden" value="@Model.documentData.sementis_entities.entities[i].occurrences[j].value" />
+                                    </div>
+                                }
+                            </div>
+                            <div class="imagesEntityAIDA">
+                                @for (int j = 0; j < Model.documentData.sementis_entities.entities[i].images.Count; j++)
+                                {
+                                    <div class="imageEntityAIDA">
+                                        <input type="hidden" value="@Model.documentData.sementis_entities.entities[i].images[j].title" />
+                                        <input type="hidden" value="@Model.documentData.sementis_entities.entities[i].images[j].url" />
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <div class="imagesAIDA">
+                    @for (int i = 0; i < Model.documentData.images.Count; i++)
+                    {
+                        string classImage = "image" + i;
+                        <p class="@classImage">
+                            <input type="hidden" value="@Model.documentData.images[i].url" />
+                            <input type="hidden" value="@Model.documentData.images[i].name" />
+                            <input type="hidden" value="@Model.documentData.images[i].thumbnail" />
+                        </p>
+                    }
+                </div>
+
+                <input type="submit" id="updateAIDA" class="hidden" />
+            }
+        </div>
+
+
+        <div style="border-right: 1px solid cornflowerblue;" class="col-md-6">
+            <div style="margin: 3vh 5vw; text-align: center">
+                <a href="@Model.documentData.url" target="_blank">@Model.documentData.title</a>
+            </div>
+            <div hidden id="resultReanalyse"></div>
+            <div hidden id="resultUpdate"></div>
+            <div id="content" style="border-bottom: 1px solid cornflowerblue; color: black; padding: 1vh 0 2vh 0; text-align: justify;">
+                @Model.documentData.content
+            </div>
+            <div id="divTags" style="border-bottom: 1px solid cornflowerblue; padding: 1vh 0 2vh 0">
+                <h3 style="text-align: center;">Tags</h3>
+                <div class="allTags">
+                    @{
+                        string[] chars = new string[] { " ", "#", "$", "@", "^", "&", "*", "(", ")", "?", "/", "<", ">", ":", ",", ";", "'", "‘", "’", "\\", "|", "{", "}", "[", "]", "_", "~", "=", "-", ".", "´", "`", "¨" };
+                    }
+                    @foreach (var entity in Model.documentData.sementis_entities.entities)
+                    {
+                        string dataTag = "";
+                        string noSpecialChar = entity.commonName;
+                        for (var i = 0; i < chars.Count(); i++)
+                        {
+                            while (noSpecialChar.IndexOf(chars[i]) > -1)
+                            {
+                                noSpecialChar = noSpecialChar.Replace(chars[i], "");
+                            }
+                        }
+                        noSpecialChar = noSpecialChar.ToLower();
+                        foreach (var occurrence in entity.occurrences)
+                        {
+                            dataTag += occurrence.value + "/";
+                        }
+                        <button class="tagsButton label @noSpecialChar" data-tags="@dataTag" type="button">@entity.commonName</button>
+                    }
+                </div>
+                <div style="padding: 1vh 0; margin-top: 1vh; border-top: 1px solid cornflowerblue; display: flex; justify-content: space-around">
+                    @using (Ajax.BeginForm("Suggestions", "Update", null, new AjaxOptions()
+                    {
+                        OnBegin = "hideDescriptionWhenSuggestions",
+                        HttpMethod = "POST",
+                        UpdateTargetId = "resultTarget",
+                        OnSuccess = "showResultsDirectly"
+                    }))
+                    {
+                        @Html.AntiForgeryToken()
+                        <input class="valueNewTag" type="hidden" name="commonName" />
+                        <input class="addNewTag btn btn-primary active" type="submit" value="Add New Tag" />
+                    }
+                    <button class="addTag btn btn-primary active" type="button">Add to Existing Tag</button>
+                    <div hidden class="formTag">
+                        <p class="select">
+                            <select class="mySelect">
+                                @foreach (var entity in Model.documentData.sementis_entities.entities)
+                                {
+                                    string noSpecialChar = entity.commonName;
+                                    for (var i = 0; i < chars.Count(); i++)
+                                    {
+                                        while (noSpecialChar.IndexOf(chars[i]) > -1)
+                                        {
+                                            noSpecialChar = noSpecialChar.Replace(chars[i], "");
+                                        }
+                                    }
+                                    noSpecialChar = noSpecialChar.ToLower();
+                                    <option value="@noSpecialChar">@entity.commonName</option>
+                                }
+                            </select>
+                        </p>
+                        <input class="addToExistingTag btn btn-primary active" type="button" value="Add to tag" />
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-around">
+                        <button class="recolor btn btn-primary active" type="button">Recolor</button>
+                        <button class="oneTag btn btn-primary active" type="button">See one tag</button>
+                        <button style="display: none;" class="seeAllTags btn btn-primary active" type="button">See all tags</button>
+                        <button class="deleteValue btn btn-primary active" type="button">Delete value</button>
+                </div>
+            </div>
+            <div class="divImages" style="border-bottom: 1px solid cornflowerblue; padding: 1vh 0 2vh 0;">
+                @if (Model.documentData.images.Count > 0)
+                {
+                    <h3 style="text-align: center;">Images</h3>
+                    for (int i = 0; i < Model.documentData.images.Count; i++)
+                    {
+                        string classImage = "image" + i;
+                        <p class="@classImage">
+                            <img class="imageSmall" src="@Model.documentData.images[i].thumbnail" alt="@Model.documentData.images[i].name" />
+                            <img hidden class="imageBig" src="@Model.documentData.images[i].url" alt="@Model.documentData.images[i].name" />
+                            <button style="position: absolute; background-color: cornflowerblue;" class="deleteImage" type="button">X</button>
+                        </p>
+                    }
+                }
+
+            </div>
+        </div>
+
+
+        <div style="padding: 2vh 2vw; border-bottom: 1px solid cornflowerblue;" class="col-md-6">
+            <div class="menuRight">
+                @using (Ajax.BeginForm("Suggestions", "Update", new AjaxOptions
+                {
+                    OnBegin = "hideDescriptionWhenSuggestions",
+                    HttpMethod = "POST",
+                    UpdateTargetId = "resultTarget",
+                    OnSuccess = "showResultsDirectly"
+                }))
+                {
+                    @Html.AntiForgeryToken()
+                    <ul class="nav nav-pills nav-justified menuForSuggestions">
+                        <li><input class="inputCommonName" type="hidden" name="commonName" /></li>
+                        <li role="presentation"><a href="#"><input class="searchSuggestions" style="background:none!important; color:inherit; border:none; padding:0!important;" type="submit" value="Suggestions" /></a></li>
+                        <li role="presentation"><a class="delete" href="#">Delete</a></li>
+                        <li role="presentation"><a href="#"><input class="reAnalyse text-primary" style="background: none; border: none" type="button" value="Re-analyse" /></a></li>
+                    </ul>
+                }
+            </div>
+            <div style="padding: 2vh 0" hidden id="formReAnalyse">
+                @using (Ajax.BeginForm("Article", "Update", new AjaxOptions
+                {
+                    OnBegin = "checkTextToReAnalyse",
+                    HttpMethod = "POST",
+                    UpdateTargetId = "resultReanalyse",
+                    OnSuccess = "showReanalysedDoc",
+                    OnFailure = "handleError"
+                }))
+                {
+                    @Html.AntiForgeryToken()
+                    <textarea class="textToAnalyse" name="textToAnalyse" placeholder="Text to re-analyse" style="width: 100%; height: 50vh; border: 1px solid cornflowerblue"></textarea>
+                    <input type="submit" value="Re-Analyse" style="background-color: blue; color: white" />
+                }
+            </div>
+            <p hidden style="padding-top: 1vh;" class="pleaseWait">Re-analysing! Please wait...</p>
+            <div id="resultTarget"></div>
+            <div class="hideWhenSuggestions">
+                <p hidden class="tagForThisDescription"></p>
+                <div id="description" style="width:100%">
+                    <h4 hidden style="text-align: center; padding: 1vh 0; border-bottom: 1px solid cornflowerblue; border-top: 1px solid cornflowerblue">Description</h4>
+                    <div id="imageAndDescriptionTag">
+                        @foreach (var desc in Model.documentData.sementis_entities.entities)
+                        {
+                            string noSpecialChar = desc.commonName;
+                            for (var i = 0; i < chars.Count(); i++)
+                            {
+                                while (noSpecialChar.IndexOf(chars[i]) > -1)
+                                {
+                                    noSpecialChar = noSpecialChar.Replace(chars[i], "");
+                                }
+                            }
+                            noSpecialChar = noSpecialChar.ToLower();
+                            <p hidden class="details @noSpecialChar">
+                                <strong>@desc.commonName</strong>
+                            </p>
+                            if (desc.images.Count != 0)
+                            {
+                                <p hidden class="details @noSpecialChar">
+                                    <img style="max-width:100%; max-height:30vh" src="@desc.images[0].url" alt="@desc.images[0].title" />
+                                </p>
+                            }
+                            <p hidden class="@noSpecialChar details hideUpdate">
+                                @desc.description
+                            </p>
+                        }
+                    </div>
+                </div>
+                <div hidden class="control" style="border-top: 1px solid cornflowerblue; padding-top: 1vh; margin-top: 1vh">
+                    <button class="deleteTag btn btn-primary active" type="button">Delete tag</button>
+                </div>
+            </div>
+        </div>
+
+
+        <div style="border-bottom: 1px solid cornflowerblue;" class="menuUpdate col-md-6">
+            @using (Html.BeginForm("NextArticle", "Update"))
+            {
+                <input type="hidden" name="index" value="@ViewBag.index" />
+                <input type="submit" id="nextArticle" class="hidden" />
+            }
+            <ul class="nav nav-pills navbar-right">
+                <li role="presentation"><a href="#"><label for="updateAIDA" style="font-weight: normal;">Update</label></a></li>
+                <li role="presentation"><a href="#"><label for="nextArticle" style="font-weight: normal;">Next Article >></label></a></li>
+            </ul>
+        </div>
+		
+    </div>
+
+}
+
+else
+{
+    <div style="text-align: center; margin: 20vh 20vw 0 0">
+        Please <a href="/Home/Index">Log in</a> to view this page. <br />
+        If you don't have an account, please contact Mentis at <br />
+        Phone: +32 (2) 647 72 25 <br />
+        Email: info@mentis.fr
+    </div>
+}
+
+
+
+
+
+                      

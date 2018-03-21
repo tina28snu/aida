@@ -1,0 +1,145 @@
+﻿@model WebApplication1.Models.ReAnalyseModel
+
+
+
+<div id="contentR" style="border-bottom: 1px solid cornflowerblue; padding: 1vh 0 2vh 0; text-align: justify;">
+    @ViewBag.context
+</div>
+
+     
+<div id="divTagsR" style="border-bottom: 1px solid cornflowerblue; padding: 1vh 0 2vh 0">
+    <h3 style="text-align: center;">Tags</h3>
+    <div class="allTags">
+        @{
+            string[] chars = new string[] { " ", "#", "$", "@", "^", "&", "*", "(", ")", "?", "/", "<", ">", ":", ",", ";", "'", "‘", "’", "\\", "|", "{", "}", "[", "]", "_", "~", "=", "-", ".", "´", "`", "¨" };
+        }
+        @foreach (var entity in Model.result.entities)
+            {
+                string dataTag = "";
+                string noSpecialChar = entity.commonName;
+                for (var i = 0; i < chars.Count(); i++)
+            {
+                while (noSpecialChar.IndexOf(chars[i]) > -1)
+                {
+                    noSpecialChar = noSpecialChar.Replace(chars[i], "");
+                }
+            }
+            noSpecialChar = noSpecialChar.ToLower();
+            foreach (var occurrence in entity.occurrences)
+            {
+                dataTag += occurrence.value + "/";
+            }
+            <button class="tagsButton label @noSpecialChar" data-tags="@dataTag" type="button">@entity.commonName</button>
+        }
+    </div>
+    <div style="padding: 1vh 0; margin-top: 1vh; border-top: 1px solid cornflowerblue; display: flex; justify-content: space-around">
+        @using (Ajax.BeginForm("Suggestions", "Update", null, new AjaxOptions()
+            {
+                OnBegin = "hideDescriptionWhenSuggestions",
+                HttpMethod = "POST",
+                UpdateTargetId = "resultTarget",
+                OnSuccess = "showResultsDirectly"
+            }))
+            {
+            @Html.AntiForgeryToken()
+            <input class="valueNewTag" type="hidden" name="commonName" />
+            <input class="addNewTag btn btn-primary active" type="submit" value="Add New Tag" />
+        }
+        <button class="addTag btn btn-primary active" type="button">Add to Existing Tag</button>
+        <div hidden class="formTag">
+            <p class="select">
+                <select class="mySelect">
+                    @foreach (var entity in Model.result.entities)
+                    {
+                        string noSpecialChar = entity.commonName;
+                        for (var i = 0; i < chars.Count(); i++)
+                        {
+                            while (noSpecialChar.IndexOf(chars[i]) > -1)
+                            {
+                                noSpecialChar = noSpecialChar.Replace(chars[i], "");
+                            }
+                        }
+                        noSpecialChar = noSpecialChar.ToLower();
+                        <option value="@noSpecialChar">@entity.commonName</option>
+                    }
+                </select>
+            </p>
+            <input class="addToExistingTag btn btn-primary active" type="button" value="Add to tag" />
+        </div>
+    </div>
+    <div style="display: flex; justify-content: space-around">
+        @if (Model.result.entities.Count() > 20)
+        {
+            <button class="recolor btn btn-primary active" type="button">Recolor</button>
+            <button class="oneTag btn btn-primary active" type="button">See one tag</button>
+            <button style="display: none;" class="seeAllTags btn btn-primary active" type="button">See all tags</button>
+            <button class="deleteValue btn btn-primary active" type="button">Delete value</button>
+        }
+    </div>
+</div>
+        
+
+<div id="descriptionR" style="width:100%">
+    <h4 hidden style="text-align: center; padding: 1vh 0; border-bottom: 1px solid cornflowerblue; border-top: 1px solid cornflowerblue">Description</h4>
+    <div id="imageAndDescriptionTag">
+        @foreach (var entity in Model.result.entities)
+        {
+            string noSpecialChar = entity.commonName;
+            for (var i = 0; i < chars.Count(); i++)
+            {
+                while (noSpecialChar.IndexOf(chars[i]) > -1)
+                {
+                    noSpecialChar = noSpecialChar.Replace(chars[i], "");
+                }
+            }
+            noSpecialChar = noSpecialChar.ToLower();
+            <p hidden class="details @noSpecialChar">
+                <strong>@entity.commonName</strong>
+            </p>
+            if (entity.images.Count != 0)
+            {
+                <p hidden class="details @noSpecialChar">
+                    <img style="max-width:100%; max-height:30vh" src="@entity.images[0].url" alt="@entity.images[0].title" />
+                </p>
+            }
+            <p hidden class="@noSpecialChar details hideUpdate">
+                @entity.description
+            </p>
+        }
+    </div>
+</div>
+
+
+<div id="sementisEntitiesAIDAR">
+    @for (int i = 0; i < Model.result.entities.Count; i++)
+    {
+        <div class="entityAIDA">
+            @if (Model.result.entities[i].commonName == "")
+            {
+                Model.result.entities[i].commonName = Model.result.entities[i].occurrences[0].value;
+            }
+            <input class="cn" type="hidden" value="@Model.result.entities[i].commonName" />
+            <input type="hidden" value="@Model.result.entities[i].description" />
+            <input type="hidden" value="@Model.result.entities[i].freebaseId" />
+            <div class="occurencesAIDA">
+                @for (int j = 0; j < Model.result.entities[i].occurrences.Count; j++)
+                {
+                    <div class="occurenceAIDA">
+                        <input class="start" type="hidden" value="@Model.result.entities[i].occurrences[j].start" />
+                        <input class="end" type="hidden" value="@Model.result.entities[i].occurrences[j].end" />
+                        <input type="hidden" value="@Model.result.entities[i].occurrences[j].value" />
+                    </div>
+                }
+            </div>
+            <div class="imagesEntityAIDA">
+                @for (int j = 0; j < Model.result.entities[i].images.Count; j++)
+                {
+                    <div class="imageEntityAIDA">
+                        <input type="hidden" value="@Model.result.entities[i].images[j].title" />
+                        <input type="hidden" value="@Model.result.entities[i].images[j].url" />
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
